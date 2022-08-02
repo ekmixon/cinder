@@ -290,7 +290,7 @@ of complex numbers'''
         self.hash = hash(self.value) ^ hash(type(self.value))
 
     def __repr__(self):
-        return 'ObjectValue(' + repr(self.value) + ')'
+        return f'ObjectValue({repr(self.value)})'
 
     def __hash__(self):
         return self.hash
@@ -584,7 +584,6 @@ together and end up with wrong filename or line number information.
     def write(self, value, outfile):
         code_id = self.code_id(value)
         outfile.write(UINT.pack(self.table[code_id] << 8 | OBJECT_TYPE_CODE))
-        pass
 
     def add(self, value):
         code_id = self.code_id(value)
@@ -764,11 +763,8 @@ modules to outfile which should be a seekable file-like object'''
         offset_start = self.outfile.tell()
         self.outfile.write(b'\0\0\0\0' * (sec_count))
 
-        # Then write the sections
-        offsets = []
-
         _align_file(self.outfile)
-        offsets.append(self.outfile.tell())
+        offsets = [self.outfile.tell()]
         self.write_modules()
 
         for section in sections:
@@ -784,8 +780,7 @@ modules to outfile which should be a seekable file-like object'''
 
     def make_module_tree(self):
         tree = ModuleInfo()
-        all_modules = list(self.modules.items())
-        all_modules.sort()
+        all_modules = sorted(self.modules.items())
         # First build a tree of all modules...
         for mod_name, mod_info in all_modules:
             cur = tree
@@ -866,9 +861,9 @@ class PyIceBreaker:
         self.complex_cache = {}
         self.bigint_cache = {}
         self.frozenset_cache = {}
-        header = self.map[0:7]
+        header = self.map[:7]
         if header != b'ICEPACK':
-            raise IcePackError('Invalid ice pack file: ' + repr(header))
+            raise IcePackError(f'Invalid ice pack file: {repr(header)}')
         version = self.map[7]
         if version != 0:
             raise IcePackError('Unsupported IcePack version')
@@ -926,7 +921,7 @@ class PyIceBreaker:
 
     def read_str(self, index):
         if index > self.str_count:
-            raise ValueError('Invalid str index ' + str(index))
+            raise ValueError(f'Invalid str index {str(index)}')
 
         res = self.str_cache.get(index)
         if res is None:
@@ -1138,12 +1133,11 @@ class Freezer:
         dir, file = path.split(fullpath)
         if file == "__init__.py":
             relname = path.relpath(dir,  basedir)
-            module_name = relname.replace('/', '.').replace('\\', '.')
             is_package = True
         else:
             relname = path.relpath(path.splitext(fullpath)[0], basedir)
-            module_name = relname.replace('/', '.').replace('\\', '.')
             is_package = False
+        module_name = relname.replace('/', '.').replace('\\', '.')
         relfn = path.relpath(fullpath, basedir)
 
         for exclusion in self.exclude:
@@ -1206,10 +1200,10 @@ class PyIceImporter:
     def __init__(self, import_path):
         self.path = import_path
         try:
-            if (EXTENSION + '/') in import_path:
+            if f'{EXTENSION}/' in import_path:
                 # sys.path entry should be
                 # 'path/to/compiled.icepack//relative/loc'
-                components = import_path.split(EXTENSION + '/')
+                components = import_path.split(f'{EXTENSION}/')
                 pack_name = components[0] + EXTENSION
                 if path.isfile(pack_name):
                     self.disk_loc = components[1]
@@ -1219,7 +1213,7 @@ class PyIceImporter:
         except IcePackError as e:
             print('failed to load ice pack (invalid)', e)
         except OSError as e:
-            print('failed to load ice pack: ' + str(e), e)
+            print(f'failed to load ice pack: {str(e)}', e)
 
         raise ImportError()
 
@@ -1251,10 +1245,7 @@ class PyIceImporter:
             # namespace package
             file_path = None
 
-        if is_package:
-            search = [self.path, disk_loc]
-        else:
-            search = None
+        search = [self.path, disk_loc] if is_package else None
         loader = PyIceLoader(mod, self, file_path, is_package)
         spec = spec_from_file_location(fullname, file_path,
                                        loader=loader,
@@ -1335,8 +1326,12 @@ if __name__ == '__main__':
     parser.add_argument('modules',
                         nargs='*',
                         help='Directories or files to be included in the IcePack.')
-    parser.add_argument('--output', type=str,
-                        default='out' + EXTENSION,
-                        help='The destination filename')
+    parser.add_argument(
+        '--output',
+        type=str,
+        default=f'out{EXTENSION}',
+        help='The destination filename',
+    )
+
 
     main()

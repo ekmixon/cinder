@@ -199,9 +199,11 @@ class _AsyncGeneratorContextManager(_GeneratorContextManagerBase,
                 # have this behavior). But do this only if the exception wrapped
                 # by the RuntimeError is actully Stop(Async)Iteration (see
                 # issue29692).
-                if isinstance(value, (StopIteration, StopAsyncIteration)):
-                    if exc.__cause__ is value:
-                        return False
+                if (
+                    isinstance(value, (StopIteration, StopAsyncIteration))
+                    and exc.__cause__ is value
+                ):
+                    return False
                 raise
             except BaseException as exc:
                 if exc is not value:
@@ -656,11 +658,7 @@ class AsyncExitStack(_BaseExitStack, AbstractAsyncContextManager):
         while self._exit_callbacks:
             is_sync, cb = self._exit_callbacks.pop()
             try:
-                if is_sync:
-                    cb_suppress = cb(*exc_details)
-                else:
-                    cb_suppress = await cb(*exc_details)
-
+                cb_suppress = cb(*exc_details) if is_sync else await cb(*exc_details)
                 if cb_suppress:
                     suppressed_exc = True
                     pending_raise = False
